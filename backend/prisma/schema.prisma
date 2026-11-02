@@ -1,0 +1,140 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum Category {
+  EARTHQUAKE
+  FLOOD
+  VOLCANO
+  LANDSLIDE
+  WEATHER
+  WILDFIRE
+  OTHER
+}
+
+enum Severity {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum EventStatus {
+  ACTIVE
+  CONTAINED
+  RESOLVED
+  ARCHIVED
+}
+
+enum VerificationStatus {
+  VERIFIED
+  UNVERIFIED
+  FALSE_ALARM
+}
+
+enum SyncStatus {
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  name         String
+  role         Role        @default(OPERATOR)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model DataSource {
+  id                  String       @id @default(uuid())
+  name                String
+  code                String       @unique
+  isEnabled           Boolean      @default(true)
+  pollIntervalMinutes Int          @default(15)
+  lastSyncAt          DateTime?
+  lastSyncStatus      SyncStatus?
+  lastErrorMessage    String?
+  config              Json?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  events              DisasterEvent[]
+  syncLogs            SyncLog[]
+}
+
+model DisasterEvent {
+  id                 String             @id @default(uuid())
+  title              String
+  description        String?
+  category           Category
+  severity           Severity           @default(MODERATE)
+  status             EventStatus        @default(ACTIVE)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  province           String
+  regency            String?
+  locationName       String
+  latitude           Float
+  longitude          Float
+  geometry           Json?              // GeoJSON geometry representation
+  occurredAt         DateTime
+  sourceId           String?
+  source             DataSource?        @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  externalId         String?            @unique
+  rawPayload         Json?
+  metadata           Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model SyncLog {
+  id             String      @id @default(uuid())
+  dataSourceId   String
+  dataSource     DataSource  @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  status         SyncStatus
+  eventsProcessed Int        @default(0)
+  eventsCreated  Int         @default(0)
+  eventsUpdated  Int         @default(0)
+  errorMessage   String?
+  durationMs     Int         @default(0)
+  createdAt      DateTime    @default(now())
+}
+
+model NewsItem {
+  id          String   @id @default(uuid())
+  title       String
+  summary     String
+  content     String?
+  category    Category @default(OTHER)
+  sourceName  String
+  sourceUrl   String?
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+}
