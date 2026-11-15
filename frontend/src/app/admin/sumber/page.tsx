@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { fetchAPI } from '@/lib/api';
-import { Database, RefreshCw, CheckCircle } from 'lucide-react';
+import { Database, RefreshCw, CheckCircle, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminSumberPage() {
@@ -65,6 +65,9 @@ export default function AdminSumberPage() {
           </Link>
           <Link href="/admin/audit" className="flex items-center space-x-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 transition-colors">
             <span>Audit Log</span>
+          </Link>
+          <Link href="/statistik" className="flex items-center space-x-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 transition-colors">
+            <span>Statistik & Analisis</span>
           </Link>
         </nav>
       </aside>

@@ -52,7 +52,7 @@ Platform ini secara otomatis menyelaraskan dan memvalidasi data dari 10 sumber r
 
 - **Frontend**: Next.js 14 (App Router), Tailwind CSS, MapLibre GL, Lucide Icons.
 - **Backend**: NestJS, TypeScript, Prisma ORM, Node.js.
-- **Database & Cache**: PostgreSQL (PostGIS) & Redis.
+- **Database**: PostgreSQL (PostGIS).
 - **Containerization**: Docker & Docker Compose.
 
 ---

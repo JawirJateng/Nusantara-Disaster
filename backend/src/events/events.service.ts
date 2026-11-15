@@ -51,23 +51,20 @@ export class EventsService {
       this.prisma.disasterEvent.count({ where }),
     ]);
 
-    const seen = new Set<string>();
-    const items = rawItems.filter((item) => {
-      const timeHour = new Date(item.occurredAt).toISOString().slice(0, 13); // YYYY-MM-DDTHH
-      const magMatch = item.title.match(/M([0-9\.]+)/);
-      const mag = magMatch ? magMatch[1] : '';
-      const latStr = (item.latitude || 0).toFixed(1);
-      const lngStr = (item.longitude || 0).toFixed(1);
-
-      let key = item.externalId;
-      if (item.category === 'EARTHQUAKE' && mag) {
-        key = `EQ-${timeHour}-${mag}-${latStr}-${lngStr}`;
-      }
-
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }).slice(0, limit);
+    // One earthquake per location (±0.2°): rawItems is newest-first, so the latest one wins.
+    const items: typeof rawItems = [];
+    for (const item of rawItems) {
+      if (items.length >= limit) break;
+      const isNearbyQuake =
+        item.category === 'EARTHQUAKE' &&
+        items.some(
+          (kept) =>
+            kept.category === 'EARTHQUAKE' &&
+            Math.abs(kept.latitude - item.latitude) < 0.2 &&
+            Math.abs(kept.longitude - item.longitude) < 0.2,
+        );
+      if (!isNearbyQuake) items.push(item);
+    }
 
     return {
       items,
@@ -114,7 +111,7 @@ export class EventsService {
     return event;
   }
 
-  async create(dto: CreateEventDto, userId?: string) {
+  async create(dto: CreateEventDto, userId?: string, ip?: string) {
     const event = await this.prisma.disasterEvent.create({
       data: {
         ...dto,
@@ -135,6 +132,7 @@ export class EventsService {
           entityType: 'DisasterEvent',
           entityId: event.id,
           details: { title: event.title },
+          ipAddress: ip,
         },
       });
     }
@@ -142,7 +140,7 @@ export class EventsService {
     return event;
   }
 
-  async update(id: string, dto: UpdateEventDto, userId?: string) {
+  async update(id: string, dto: UpdateEventDto, userId?: string, ip?: string) {
     await this.findOne(id);
 
     const updateData: any = { ...dto };
@@ -170,6 +168,7 @@ export class EventsService {
           entityType: 'DisasterEvent',
           entityId: updated.id,
           details: JSON.parse(JSON.stringify(dto)),
+          ipAddress: ip,
         },
       });
     }
@@ -177,7 +176,7 @@ export class EventsService {
     return updated;
   }
 
-  async remove(id: string, userId?: string) {
+  async remove(id: string, userId?: string, ip?: string) {
     const event = await this.findOne(id);
     await this.prisma.disasterEvent.delete({ where: { id: event.id } });
 
@@ -189,6 +188,7 @@ export class EventsService {
           entityType: 'DisasterEvent',
           entityId: event.id,
           details: { title: event.title },
+          ipAddress: ip,
         },
       });
     }

@@ -1,47 +1,31 @@
 import { PrismaClient, Role, Category, Severity, EventStatus, VerificationStatus } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 
 
 const prisma = new PrismaClient();
 
-function parseBmkgDate(g: any): Date {
-  if (g.DateTime) {
-    const d = new Date(g.DateTime);
-    if (!isNaN(d.getTime())) return d;
-  }
-  if (g.Tanggal && g.Jam) {
-    const cleanJam = g.Jam.replace(/WIB|WITA|WIT/g, '').trim();
-    const months: Record<string, string> = {
-      'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06',
-      'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12',
-      'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04', 'Mei': '05', 'Juni': '06',
-      'Juli': '07', 'Agustus': '08', 'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
-    };
-    const parts = g.Tanggal.trim().split(/\s+/);
-    if (parts.length === 3) {
-      const day = parts[0].padStart(2, '0');
-      const monthStr = parts[1];
-      const year = parts[2];
-      const month = months[monthStr] || months[monthStr.substring(0, 3)] || '01';
-      const isoStr = `${year}-${month}-${day}T${cleanJam}+07:00`;
-      const d = new Date(isoStr);
-      if (!isNaN(d.getTime())) return d;
-    }
-  }
-  return new Date();
-}
-
 async function main() {
-  console.log('🌱 Seeding Nusantara Disaster database & pulling live disaster events (Mag >= 4.0)...');
+  console.log('🌱 Seeding Nusantara Disaster database...');
 
-  await prisma.disasterEvent.deleteMany({});
-  await prisma.newsItem.deleteMany({});
+  // Destructive reset is opt-in and never runs during a normal deploy.
+  if (process.env.RESET_DB === 'true') {
+    console.log('⚠️ RESET_DB=true: menghapus kejadian dan berita yang ada.');
+    await prisma.disasterEvent.deleteMany({});
+    await prisma.newsItem.deleteMany({});
+  }
 
-  const hashedPassword = '$2a$10$J323gRahcZUZ4ERDoGM.LuE5UCYXyUI/n3PLzs2YDbzTy7MueDcLi';
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@ndw.go.id';
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) throw new Error('ADMIN_PASSWORD belum diset');
+  if (adminPassword.length < 12) throw new Error('ADMIN_PASSWORD minimal 12 karakter');
+
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@ndw.go.id' },
-    update: {},
+    where: { email: adminEmail },
+    // Password follows ADMIN_PASSWORD, so rotating it in .env takes effect on the next deploy.
+    update: { passwordHash: hashedPassword },
     create: {
-      email: 'admin@ndw.go.id',
+      email: adminEmail,
       name: 'Super Administrator NDW',
       passwordHash: hashedPassword,
       role: Role.SUPER_ADMIN,
@@ -68,141 +52,7 @@ async function main() {
     sourcesMap[src.code] = dataSource.id;
   }
   console.log('✅ Data sources seeded.');
-
-  // Fetch live BMKG earthquakes immediately during seeding (Mag >= 4.0)
-  try {
-    console.log('🌐 Menarik data gempa bumi live (Mag >= 4.0) dari BMKG saat seeding...');
-    const [resTerkini, resDirasakan] = await Promise.all([
-      fetch('https://data.bmkg.go.id/DataMKG/TEWS/gempaterkini.json')
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-      fetch('https://data.bmkg.go.id/DataMKG/TEWS/gempadirasakan.json')
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-    ]);
-
-    const gempaTerkini = resTerkini?.Infogempa?.gempa || [];
-    const gempaDirasakan = resDirasakan?.Infogempa?.gempa || [];
-
-    const gempaMap = new Map();
-    [...gempaTerkini, ...gempaDirasakan].forEach((g: any) => {
-      if (g && (g.DateTime || (g.Tanggal && g.Jam)) && g.Magnitude && g.Coordinates) {
-        let lat = -2.5;
-        let lng = 118.0;
-        const parts = g.Coordinates.split(',');
-        if (parts.length === 2) {
-          lat = parseFloat(parts[0]);
-          lng = parseFloat(parts[1]);
-        }
-        const dateObj = parseBmkgDate(g);
-        const timeKey = dateObj.toISOString().slice(0, 16);
-        const magNum = parseFloat(g.Magnitude || '0');
-        const mag = magNum.toFixed(1);
-        const latStr = (isNaN(lat) ? -2.5 : lat).toFixed(1);
-        const lngStr = (isNaN(lng) ? 118.0 : lng).toFixed(1);
-        const externalId = `BMKG-${timeKey}-${mag}-${latStr}-${lngStr}`.replace(/\s+/g, '-');
-
-        if (gempaMap.has(externalId)) {
-          const existing = gempaMap.get(externalId);
-          if (g.Dirasakan && !existing.Dirasakan) {
-            existing.Dirasakan = g.Dirasakan;
-          }
-          if (g.Wilayah && g.Wilayah.length > existing.Wilayah.length) {
-            existing.Wilayah = g.Wilayah;
-          }
-        } else {
-          gempaMap.set(externalId, g);
-        }
-      }
-    });
-
-    const gempaList = Array.from(gempaMap.values());
-    const bmkgSourceId = sourcesMap['BMKG'];
-
-    let seededCount = 0;
-    if (bmkgSourceId) {
-      for (const g of gempaList) {
-        const magNum = parseFloat(g.Magnitude || '0');
-        const mag = magNum.toFixed(1);
-        if (magNum < 4.0) {
-          continue; // Skip magnitude < 4.0
-        }
-
-        let lat = -2.5;
-        let lng = 118.0;
-        if (g.Coordinates) {
-          const parts = g.Coordinates.split(',');
-          if (parts.length === 2) {
-            lat = parseFloat(parts[0]);
-            lng = parseFloat(parts[1]);
-          }
-        }
-
-        const severity = magNum >= 6.0 ? Category.EARTHQUAKE ? 'CRITICAL' : 'CRITICAL' : magNum >= 5.0 ? 'HIGH' : 'MODERATE';
-        const title = `Gempa Bumi M${mag} - ${g.Wilayah || 'Indonesia'}`;
-        const latStr = (isNaN(lat) ? -2.5 : lat).toFixed(1);
-        const lngStr = (isNaN(lng) ? 118.0 : lng).toFixed(1);
-        const dateObj = parseBmkgDate(g);
-        const timeKey = dateObj.toISOString().slice(0, 16);
-        const externalId = `BMKG-${timeKey}-${mag}-${latStr}-${lngStr}`.replace(/\s+/g, '-');
-
-        const occurredAt = dateObj;
-
-        let existing = await prisma.disasterEvent.findUnique({
-          where: { externalId },
-        });
-
-        if (!existing) {
-          const allQuakes = await prisma.disasterEvent.findMany({
-            where: { category: Category.EARTHQUAKE },
-          });
-          for (const q of allQuakes) {
-            const timeDiff = Math.abs(q.occurredAt.getTime() - occurredAt.getTime());
-            const latDiff = Math.abs(q.latitude - (isNaN(lat) ? -2.5 : lat));
-            const lngDiff = Math.abs(q.longitude - (isNaN(lng) ? 118.0 : lng));
-            const qMagMatch = q.title.match(/M([0-9]+\.[0-9]+)/);
-            const qMag = qMagMatch ? qMagMatch[1] : '0.0';
-
-            if (timeDiff < 15 * 60 * 1000 && latDiff < 0.2 && lngDiff < 0.2 && qMag === mag) {
-              existing = q;
-              break;
-            }
-          }
-        }
-
-        if (!existing) {
-          await prisma.disasterEvent.create({
-            data: {
-              title,
-              description: `Gempa bumi magnitudo ${mag}, kedalaman ${g.Kedalaman}, wilayah ${g.Wilayah}. Potensi: ${g.Potensi || 'N/A'}. Dirasakan: ${g.Dirasakan || 'Tidak ada info'}.`,
-              category: Category.EARTHQUAKE,
-              severity: magNum >= 6.0 ? Severity.CRITICAL : magNum >= 5.0 ? Severity.HIGH : Severity.MODERATE,
-              status: EventStatus.ACTIVE,
-              verificationStatus: VerificationStatus.VERIFIED,
-              province: g.Wilayah ? g.Wilayah.split(',').pop()?.trim() || 'Indonesia' : 'Indonesia',
-              locationName: g.Wilayah || 'Indonesia',
-              latitude: isNaN(lat) ? -2.5 : lat,
-              longitude: isNaN(lng) ? 118.0 : lng,
-              occurredAt,
-              sourceId: sourcesMap['BMKG'],
-              externalId,
-              rawPayload: g,
-              metadata: {
-                magnitude: magNum,
-                depth: g.Kedalaman,
-                potential: g.Potensi,
-                felt: g.Dirasakan,
-              },
-            },
-          });
-          seededCount++;
-        }
-      }
-      console.log(`✅ Seeded ${seededCount} live BMKG earthquakes (Mag >= 4.0) successfully.`);
-    }
-  } catch (err) {
-    console.warn('⚠️ Gagal menarik live BMKG saat seeding:', err.message);
-  }
+  console.log('ℹ️ Data kejadian live diisi oleh Intelligent Disaster Data Synchronization Engine saat backend start.');
 
   // Seed historical archive events (1 month, quarterly, 1 year) stored in database but excluded from 7-day homepage window
   const historicalEvents = [
@@ -360,14 +210,16 @@ async function main() {
 
   for (const hist of historicalEvents) {
     await prisma.disasterEvent.upsert({
-      where: { externalId: hist.externalId },
+      where: {
+        sourceId_externalId: { sourceId: hist.sourceId, externalId: hist.externalId },
+      },
       update: {},
       create: hist,
     }).catch(() => {});
   }
   console.log('✅ Historical archive events (1 month, quarterly, 1 year) stored in database successfully.');
 
-  console.log('🎉 Seeding completed with 100% live BMKG earthquake data (Mag >= 4.0)!');
+  console.log('🎉 Seeding selesai. Data kejadian live disinkronkan oleh IDSE.');
 }
 
 main()

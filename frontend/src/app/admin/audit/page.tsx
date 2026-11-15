@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { fetchAPI } from '@/lib/api';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminAuditPage() {
@@ -35,6 +35,9 @@ export default function AdminAuditPage() {
           </Link>
           <Link href="/admin/audit" className="flex items-center space-x-3 px-3.5 py-2.5 rounded-lg bg-slate-800 text-white">
             <span>Audit Log</span>
+          </Link>
+          <Link href="/statistik" className="flex items-center space-x-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 transition-colors">
+            <span>Statistik & Analisis</span>
           </Link>
         </nav>
       </aside>

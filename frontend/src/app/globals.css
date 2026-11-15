@@ -2,80 +2,132 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================================
+   Nusantara Disaster — base layer
+   Tokens live in tailwind.config.js. This layer defines the root surface
+   and the legacy CSS-variable aliases that some components still reference.
+   ========================================================================= */
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
   }
-}
 
-@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-slate-50 text-slate-900 antialiased selection:bg-red-500 selection:text-white;
+    @apply bg-canvas text-ink antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    min-height: 100vh;
+  }
+
+  /* Respect prefers-reduced-motion — disable decorative motion globally */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-/* Custom smooth scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
-}
-
-/* Slower, professional disaster marker animations */
-@keyframes slowBounce {
-  0%, 100% {
-    transform: translateY(-12%);
-    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+/* =========================================================================
+   Component layer — shared visual primitives
+   ========================================================================= */
+@layer components {
+  .ndw-gradient-hero {
+    background: linear-gradient(
+      180deg,
+      #DAF1DE 0%,
+      #8EB69B 28%,
+      #235347 62%,
+      #0B2B26 82%,
+      #051F20 100%
+    );
   }
-  50% {
-    transform: translateY(0);
-    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+
+  .ndw-section-title {
+    @apply text-h2 font-bold tracking-tight text-ink;
+  }
+
+  .ndw-card {
+    @apply rounded-card border border-line bg-surface shadow-card;
+  }
+
+  .ndw-card-shadow {
+    @apply shadow-card;
+  }
+
+  .ndw-stat-card {
+    @apply rounded-card border border-line bg-surface p-5 shadow-card;
+  }
+
+  .ndw-stat-value {
+    @apply text-kpi font-bold text-ink leading-none mt-1;
+  }
+
+  .ndw-stat-label {
+    @apply text-small text-ink-muted;
+  }
+
+  .ndw-field-label {
+    @apply mb-1.5 block text-small font-semibold text-ink;
+  }
+
+  .ndw-field-hint {
+    @apply mt-1 text-small text-ink-muted;
+  }
+
+  .ndw-empty {
+    @apply flex flex-col items-center justify-center py-12 px-6 text-center text-body-sm text-ink-muted;
+  }
+
+  .ndw-empty-icon {
+    @apply mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-mint-100 text-sage-600;
+  }
+
+  .ndw-skeleton {
+    @apply animate-pulse rounded-card bg-surface-muted;
+  }
+
+  /* Focus ring — consistent across inputs, buttons, links */
+  .ndw-focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas;
+  }
+
+  /* Custom scrollbar — thin, muted, never black */
+  .ndw-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .ndw-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .ndw-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-line rounded-full;
+  }
+  .ndw-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-sage-400;
+  }
+
+  /* Animasi kedip sangat lambat untuk ikon marker peta */
+  @keyframes slowPulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  .animate-slow-pulse {
+    animation: slowPulse 3s ease-in-out infinite !important;
   }
 }
 
-@keyframes slowPulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.animate-slow-bounce {
-  animation: slowBounce 3s infinite;
-}
-
-.animate-slow-pulse {
-  animation: slowPulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Custom MapLibre Popup styling to remove default white box wrapper */
+/* MapLibre popup — strip the default white box so only the rounded label shows.
+   Kept outside @layer so Tailwind never tree-shakes these runtime selectors. */
 .maplibregl-popup-content {
   background: transparent !important;
   padding: 0 !important;
@@ -84,4 +136,9 @@
 }
 .maplibregl-popup-tip {
   display: none !important;
+}
+
+/* Label nama bencana di peta — jangan blokir pan/zoom peta */
+.ndw-event-label-popup .maplibregl-popup-content {
+  pointer-events: none;
 }

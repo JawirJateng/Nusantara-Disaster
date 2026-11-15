@@ -49,69 +49,127 @@ enum SyncStatus {
   PARTIAL
 }
 
+enum SyncHealth {
+  IDLE
+  HEALTHY
+  RUNNING
+  DEGRADED
+  FAILED
+  DISABLED
+}
+
 model User {
-  id           String      @id @default(uuid())
-  email        String      @unique
+  id           String     @id @default(uuid())
+  email        String     @unique
   passwordHash String
   name         String
-  role         Role        @default(OPERATOR)
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  role         Role       @default(OPERATOR)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   auditLogs    AuditLog[]
 }
 
 model DataSource {
-  id                  String       @id @default(uuid())
+  id                  String          @id @default(uuid())
   name                String
-  code                String       @unique
-  isEnabled           Boolean      @default(true)
-  pollIntervalMinutes Int          @default(15)
+  code                String          @unique
+  isEnabled           Boolean         @default(true)
+  pollIntervalMinutes Int             @default(15)
+  timeoutMs           Int             @default(10000)
+  maxRetries          Int             @default(2)
+  supportsIncremental Boolean         @default(false)
+  logRetentionDays    Int             @default(30)
   lastSyncAt          DateTime?
   lastSyncStatus      SyncStatus?
   lastErrorMessage    String?
   config              Json?
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  // Sync engine state (IDSE)
+  failureCount        Int             @default(0)
+  lastAttemptAt       DateTime?
+  nextPollAt          DateTime?
+  syncLockExpiresAt   DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
   events              DisasterEvent[]
   syncLogs            SyncLog[]
+  checkpoint          SyncCheckpoint?
 }
 
 model DisasterEvent {
-  id                 String             @id @default(uuid())
-  title              String
-  description        String?
-  category           Category
-  severity           Severity           @default(MODERATE)
-  status             EventStatus        @default(ACTIVE)
-  verificationStatus VerificationStatus @default(UNVERIFIED)
-  province           String
-  regency            String?
-  locationName       String
-  latitude           Float
-  longitude          Float
-  geometry           Json?              // GeoJSON geometry representation
-  occurredAt         DateTime
-  sourceId           String?
-  source             DataSource?        @relation(fields: [sourceId], references: [id], onDelete: SetNull)
-  externalId         String?            @unique
-  rawPayload         Json?
-  metadata           Json?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  id                  String             @id @default(uuid())
+  title               String
+  description         String?
+  category            Category
+  severity            Severity           @default(MODERATE)
+  status              EventStatus        @default(ACTIVE)
+  verificationStatus  VerificationStatus @default(UNVERIFIED)
+  province            String
+  regency             String?
+  locationName        String
+  latitude            Float
+  longitude           Float
+  geometry            Json? // GeoJSON geometry representation
+  occurredAt          DateTime
+  sourceId            String?
+  source              DataSource?        @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  externalId          String?
+  identityFingerprint String? // used when the provider has no stable external ID
+  contentHash         String? // hash of meaningful fields, drives SKIP/UPDATE
+  sourceUpdatedAt     DateTime?
+  firstSeenAt         DateTime           @default(now())
+  lastSeenAt          DateTime           @default(now())
+  rawPayload          Json?
+  metadata            Json?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@unique([sourceId, externalId])
+  @@unique([sourceId, identityFingerprint])
+  @@index([sourceId, occurredAt])
+  @@index([occurredAt])
+  @@index([lastSeenAt])
 }
 
 model SyncLog {
-  id             String      @id @default(uuid())
-  dataSourceId   String
-  dataSource     DataSource  @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
-  status         SyncStatus
+  id              String     @id @default(uuid())
+  dataSourceId    String
+  dataSource      DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  status          SyncStatus
+  eventsFetched   Int        @default(0)
   eventsProcessed Int        @default(0)
-  eventsCreated  Int         @default(0)
-  eventsUpdated  Int         @default(0)
-  errorMessage   String?
-  durationMs     Int         @default(0)
-  createdAt      DateTime    @default(now())
+  eventsValid     Int        @default(0)
+  eventsCreated   Int        @default(0)
+  eventsUpdated   Int        @default(0)
+  eventsSkipped   Int        @default(0)
+  eventsRejected  Int        @default(0)
+  eventsReview    Int        @default(0)
+  errorCount      Int        @default(0)
+  retryCount      Int        @default(0)
+  rateLimitCount  Int        @default(0)
+  errorMessage    String?
+  durationMs      Int        @default(0)
+  startedAt       DateTime   @default(now())
+  finishedAt      DateTime?
+  createdAt       DateTime   @default(now())
+
+  @@index([createdAt])
+  @@index([dataSourceId, createdAt])
+}
+
+model SyncCheckpoint {
+  id                   String     @id @default(uuid())
+  dataSourceId         String     @unique
+  dataSource           DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  status               SyncHealth @default(HEALTHY)
+  consecutiveFailures  Int        @default(0)
+  lastSuccessfulSyncAt DateTime?
+  lastAttemptAt        DateTime?
+  lastSeenUpdatedAt    DateTime?
+  cursor               String?
+  metadata             Json?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 }
 
 model NewsItem {

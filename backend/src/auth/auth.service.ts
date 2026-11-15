@@ -16,8 +16,9 @@ export class AuthService {
       where: { email: dto.email },
     });
 
+    // Same message for unknown/inactive email and wrong password: no user enumeration.
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Invalid credentials or account inactive');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { fetchAPI } from '@/lib/api';
-import { ShieldAlert, Plus, Trash2, CheckCircle, ArrowLeft } from 'lucide-react';
+import { ShieldAlert, Plus, Trash2, CheckCircle, ArrowLeft, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminKejadianPage() {
@@ -65,6 +65,9 @@ export default function AdminKejadianPage() {
           </Link>
           <Link href="/admin/audit" className="flex items-center space-x-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 transition-colors">
             <span>Audit Log</span>
+          </Link>
+          <Link href="/statistik" className="flex items-center space-x-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 transition-colors">
+            <span>Statistik & Analisis</span>
           </Link>
         </nav>
       </aside>

@@ -3,13 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
-import { ShieldAlert, Database, Users, ShieldCheck, Lock, LogOut, RefreshCw, Activity, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, Database, Users, ShieldCheck, Lock, LogOut, RefreshCw, Activity, AlertTriangle, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminOverviewPage() {
   const [user, setUser] = useState<any>(null);
-  const [email, setEmail] = useState('admin@ndw.go.id');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [summary, setSummary] = useState<any>(null);
   const [sources, setSources] = useState<any[]>([]);
@@ -150,6 +150,10 @@ export default function AdminOverviewPage() {
           <Link href="/admin/audit" className="flex items-center space-x-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors">
             <ShieldCheck className="w-4 h-4" />
             <span>Audit Log</span>
+          </Link>
+          <Link href="/statistik" className="flex items-center space-x-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors">
+            <BarChart3 className="w-4 h-4" />
+            <span>Statistik & Analisis</span>
           </Link>
         </nav>
 

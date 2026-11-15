@@ -34,6 +34,7 @@ export default function PublicHomepage() {
   const [loading, setLoading] = useState(true);
 
   const prevEventsRef = useRef<string[]>([]);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const loadData = async (isInitial = false) => {
     try {
@@ -95,6 +96,7 @@ export default function PublicHomepage() {
                 return (
                   <div
                     key={ev.id}
+                    ref={(node) => { cardRefs.current[ev.id] = node; }}
                     onClick={() => {
                       setExpandedId(isExpanded ? null : ev.id);
                       setSelectedEvent({ ...ev }); // Automatically zoom and center map on this event location
@@ -111,7 +113,7 @@ export default function PublicHomepage() {
                         </span>
                       </div>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                        ev.severity === 'CRITICAL' ? 'bg-red-100 text-red-800 animate-pulse' :
+                        ev.severity === 'CRITICAL' ? 'bg-red-100 text-red-800 slow-pulse' :
                         ev.severity === 'HIGH' ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-800'
                       }`}>
                         {translateSeverity(ev.severity)}
@@ -203,6 +205,9 @@ export default function PublicHomepage() {
               onSelectEvent={(ev) => {
                 setSelectedEvent({ ...ev });
                 setExpandedId(ev.id); // Also expand corresponding feed card when map marker is clicked
+                requestAnimationFrame(() => {
+                  cardRefs.current[ev.id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
               }}
               selectedEvent={selectedEvent}
             />
@@ -211,10 +216,7 @@ export default function PublicHomepage() {
 
         {/* Disaster News & Situation Reports */}
         <section className="space-y-4 pt-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">Berita Bencana Alam</h2>
-            <span className="text-xs text-slate-500">Pembaruan resmi dari instansi & media terpercaya</span>
-          </div>
+          <h2 className="text-lg font-bold text-slate-900">Berita Bencana Alam</h2>
           <NewsFeed news={news} />
         </section>
       </main>

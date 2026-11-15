@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SyncService } from '../sync/sync.service';
 
@@ -9,12 +10,18 @@ export class SourcesService {
     private syncService: SyncService,
   ) {}
 
+  // Public endpoint: never return `config`, checkpoints or sync logs here.
   async findAll() {
     return this.prisma.dataSource.findMany({
-      include: {
-        _count: {
-          select: { events: true, syncLogs: true },
-        },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        isEnabled: true,
+        pollIntervalMinutes: true,
+        lastSyncAt: true,
+        lastSyncStatus: true,
+        _count: { select: { events: true } },
       },
       orderBy: { name: 'asc' },
     });
@@ -23,18 +30,22 @@ export class SourcesService {
   async findOne(id: string) {
     const source = await this.prisma.dataSource.findUnique({
       where: { id },
-      include: {
-        syncLogs: {
-          take: 10,
-          orderBy: { createdAt: 'desc' },
-        },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        isEnabled: true,
+        pollIntervalMinutes: true,
+        lastSyncAt: true,
+        lastSyncStatus: true,
+        _count: { select: { events: true } },
       },
     });
     if (!source) throw new NotFoundException(`Data source ${id} not found`);
     return source;
   }
 
-  async toggle(id: string, isEnabled: boolean, userId?: string) {
+  async toggle(id: string, isEnabled: boolean, userId?: string, ip?: string) {
     const source = await this.prisma.dataSource.update({
       where: { id },
       data: { isEnabled },
@@ -48,6 +59,7 @@ export class SourcesService {
           entityType: 'DataSource',
           entityId: id,
           details: { name: source.name, isEnabled },
+          ipAddress: ip,
         },
       });
     }
@@ -55,34 +67,11 @@ export class SourcesService {
     return source;
   }
 
-  async triggerSync(id: string, userId?: string) {
+  async triggerSync(id: string, userId?: string, ip?: string) {
     const source = await this.prisma.dataSource.findUnique({ where: { id } });
     if (!source) throw new NotFoundException(`Data source ${id} not found`);
 
-    if (source.code === 'BMKG') {
-      await this.syncService.syncBmkg(id);
-    } else {
-      // Simulate sync process for other sources
-      await this.prisma.syncLog.create({
-        data: {
-          dataSourceId: id,
-          status: 'SUCCESS',
-          eventsProcessed: 5,
-          eventsCreated: 1,
-          eventsUpdated: 4,
-          durationMs: 420,
-        },
-      });
-
-      await this.prisma.dataSource.update({
-        where: { id },
-        data: {
-          lastSyncAt: new Date(),
-          lastSyncStatus: 'SUCCESS',
-          lastErrorMessage: null,
-        },
-      });
-    }
+    const result = await this.syncService.syncSource(id);
 
     if (userId) {
       await this.prisma.auditLog.create({
@@ -91,7 +80,8 @@ export class SourcesService {
           action: 'TRIGGER_SYNC',
           entityType: 'DataSource',
           entityId: id,
-          details: { name: source.name, code: source.code },
+          details: { name: source.name, code: source.code, result } as unknown as Prisma.InputJsonObject,
+          ipAddress: ip,
         },
       });
     }

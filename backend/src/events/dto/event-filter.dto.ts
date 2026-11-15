@@ -1,4 +1,4 @@
-import { IsOptional, IsEnum, IsString, IsNumber } from 'class-validator';
+import { IsOptional, IsEnum, IsString, IsNumber, Min, Max } from 'class-validator';
 import { Category, Severity, EventStatus, VerificationStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 
@@ -38,10 +38,13 @@ export class EventFilterDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
+  @Min(1)
+  @Max(100)
   limit?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
+  @Min(0)
   offset?: number;
 }

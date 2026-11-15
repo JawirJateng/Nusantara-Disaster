@@ -2,111 +2,132 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { ShieldAlert, Radio, Info, Menu } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Menu, X, Settings2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { NDWLogo } from '@/components/NDWLogo';
+import { cn } from '@/lib/utils';
 
 export function Header() {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
+        setIsMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Removed 'Statistik' from public navLinks as requested
+  const navLinks = [
+    { href: '/', label: 'Peta Utama' },
+    { href: '/kejadian', label: 'Daftar Bencana' },
+    { href: '/tentang', label: 'Tentang' },
+  ];
+
   return (
-    <header className="sticky top-0 z-50 bg-slate-900 text-white border-b border-slate-800 shadow-md">
-      <div className="container mx-auto px-3 sm:px-4 h-16 flex items-center justify-between gap-2">
-        <Link href="/" className="flex items-center group min-w-0">
-          <div className="truncate">
-            <span className="font-bold text-sm sm:text-base md:text-lg tracking-wide block leading-tight truncate">NUSANTARA DISASTER</span>
-            <span className="text-[9px] sm:text-[10px] md:text-xs text-slate-400 tracking-wider uppercase truncate block">MENGENALI ANCAMAN, MELINDUNGI MASA DEPAN</span>
+    <header className="sticky top-0 z-50 bg-forest-900/95 backdrop-blur-md text-surface border-b border-forest-800/50 shadow-sm">
+      <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+        {/* Brand/Logo Section */}
+        <Link href="/" className="flex items-center space-x-3 group min-w-0 transition-opacity hover:opacity-90">
+          <NDWLogo className="w-10 h-10" />
+          <div className="min-w-0">
+            <span className="font-bold text-sm sm:text-lg tracking-tight block leading-none text-white truncate">
+              NUSANTARA DISASTER
+            </span>
+            <span className="text-[9px] sm:text-[10px] text-sage-400 font-medium tracking-wider uppercase mt-1 block truncate">
+              Monitoring Bencana Nasional
+            </span>
           </div>
         </Link>
 
-        {/* Center: Desktop Inline Navigation Links (hidden on mobile, shown on lg+) */}
-        <nav className="hidden lg:flex items-center space-x-2 text-xs font-semibold">
-          <Link
-            href="/"
-            className="px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-white transition-colors flex items-center space-x-1.5"
-          >
-            <Radio className="w-3.5 h-3.5 text-red-500 animate-pulse" />
-            <span>Peta Utama</span>
-          </Link>
-          <Link
-            href="/kejadian"
-            className="px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-white transition-colors flex items-center space-x-1.5"
-          >
-            <ShieldAlert className="w-3.5 h-3.5 text-orange-400" />
-            <span>Daftar Bencana</span>
-          </Link>
-          <Link
-            href="/tentang"
-            className="px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-white transition-colors flex items-center space-x-1.5"
-          >
-            <Info className="w-3.5 h-3.5 text-blue-400" />
-            <span>Tentang</span>
-          </Link>
+        {/* Desktop Navigation - Optimized for Laptop/Desktop (No Statistik for public) */}
+        <nav className="hidden md:flex items-center bg-forest-950/40 rounded-full border border-forest-800/30 p-1 mx-4">
+          {navLinks.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "px-6 py-2 rounded-full text-sm font-semibold transition-all duration-200 text-center",
+                  isActive
+                    ? "bg-forest-700 text-white shadow-sm"
+                    : "text-sage-400 hover:text-white hover:bg-forest-800/50"
+                )}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* Right side: Live Sync Indicator & Mobile Hamburger Menu */}
-        <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
-          <div className="hidden lg:flex items-center space-x-2 bg-slate-800 px-3 py-1.5 rounded-full text-xs text-emerald-400 border border-emerald-500/30">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <span>Sinkronisasi Live Aktif</span>
+        {/* Right Action Section */}
+        <div className="flex items-center space-x-3">
+          {/* Live Indicator (Desktop) */}
+          <div className="hidden lg:flex items-center space-x-2 bg-mint-100/10 px-3 py-1.5 rounded-full text-[11px] font-bold text-mint-100 border border-mint-100/20">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sage-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-sage-400"></span>
+            </span>
+            <span className="uppercase tracking-widest text-[10px]">LIVE</span>
           </div>
 
-          {/* Mobile/Tablet Hamburger Menu Dropdown (shown on screens smaller than lg) */}
-          <div className="relative lg:hidden" ref={dropdownRef}>
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700 transition-all duration-200 flex items-center justify-center focus:outline-none shadow-sm"
-              title="Menu Navigasi"
-            >
-              <Menu className="w-5 h-5 text-slate-200" />
-            </button>
+          {/* Admin Access Link */}
+          <Link href="/admin">
+            <Button variant="ghost" size="icon" className="text-sage-400 hover:text-white hover:bg-forest-800 rounded-full" title="Portal Administrator">
+              <Settings2 className="w-5 h-5" />
+            </Button>
+          </Link>
 
-            {dropdownOpen && (
-              <div className="absolute top-full right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl py-2 z-50 transform origin-top-right transition-all duration-300 animate-in fade-in zoom-in-95 text-xs">
-                <div className="px-4 py-2 border-b border-slate-700/60 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Navigasi Utama
-                </div>
-                <div className="p-1.5 space-y-1">
-                  <Link
-                    href="/"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center space-x-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-700 text-slate-200 hover:text-white transition-colors font-medium"
-                  >
-                    <Radio className="w-4 h-4 text-red-500 animate-pulse" />
-                    <span>Peta Utama</span>
-                  </Link>
-                  <Link
-                    href="/kejadian"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center space-x-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-700 text-slate-200 hover:text-white transition-colors font-medium"
-                  >
-                    <ShieldAlert className="w-4 h-4 text-orange-400" />
-                    <span>Daftar Bencana</span>
-                  </Link>
-                  <Link
-                    href="/tentang"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center space-x-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-700 text-slate-200 hover:text-white transition-colors font-medium"
-                  >
-                    <Info className="w-4 h-4 text-blue-400" />
-                    <span>Tentang Platform</span>
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Mobile Menu Toggle */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden p-2.5 bg-forest-800 hover:bg-forest-700 text-surface rounded-full transition-colors border border-forest-700/50"
+            aria-label="Toggle Menu"
+          >
+            {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Menu Overlay */}
+      {isMenuOpen && (
+        <div className="md:hidden absolute top-full left-0 right-0 bg-forest-900 border-b border-forest-800 shadow-floating animate-in slide-in-from-top-4 duration-200 overflow-hidden">
+          <div className="container mx-auto px-4 py-6 space-y-2">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={cn(
+                    "flex items-center p-4 rounded-xl text-base font-semibold transition-colors",
+                    isActive
+                      ? "bg-forest-700 text-white"
+                      : "text-sage-400 hover:bg-forest-800 hover:text-white"
+                  )}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+            <div className="pt-4 mt-4 border-t border-forest-800/50 flex items-center justify-between px-4">
+              <span className="text-xs font-bold text-sage-400 uppercase tracking-widest text-[10px]">LIVE STATUS</span>
+              <div className="flex items-center space-x-2 text-[11px] text-mint-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-sage-400 slow-pulse" />
+                <span>ONLINE</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

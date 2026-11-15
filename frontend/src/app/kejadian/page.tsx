@@ -7,7 +7,17 @@ import { EventDetailModal } from '@/components/EventDetailModal';
 import { fetchAPI } from '@/lib/api';
 import { translateCategory, translateSeverity } from '@/lib/formatters';
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, MapPin } from 'lucide-react';
+
+const filterSelectClass =
+  'h-auto text-[11px] font-normal text-slate-700 !rounded-lg !border !border-slate-200 bg-white shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:ring-offset-0';
+
+// Compact list to match the filter bar scale
+const filterSelectContentClass =
+  '!rounded-lg !border !border-slate-200 p-0 shadow-md';
+const filterSelectItemClass =
+  '!rounded-md py-2 pl-7 pr-3 !text-[11px] !text-slate-700 focus:!bg-slate-100 focus:!text-slate-900';
 
 export default function KejadianPage() {
   const [events, setEvents] = useState<any[]>([]);
@@ -67,31 +77,33 @@ export default function KejadianPage() {
             />
           </div>
 
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white"
-          >
-            <option value="ALL">Semua Kategori Bencana</option>
-            <option value="EARTHQUAKE">Gempa Bumi</option>
-            <option value="VOLCANO">Gunung Api</option>
-            <option value="FLOOD">Banjir</option>
-            <option value="LANDSLIDE">Tanah Longsor</option>
-            <option value="WILDFIRE">Kebakaran</option>
-            <option value="WEATHER">Cuaca Ekstrem</option>
-          </select>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className={`${filterSelectClass} px-3 py-2`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className={filterSelectContentClass}>
+              <SelectItem className={filterSelectItemClass} value="ALL">Semua Kategori Bencana</SelectItem>
+              <SelectItem className={filterSelectItemClass} value="EARTHQUAKE">Gempa Bumi</SelectItem>
+              <SelectItem className={filterSelectItemClass} value="VOLCANO">Gunung Api</SelectItem>
+              <SelectItem className={filterSelectItemClass} value="FLOOD">Banjir</SelectItem>
+              <SelectItem className={filterSelectItemClass} value="LANDSLIDE">Tanah Longsor</SelectItem>
+              <SelectItem className={filterSelectItemClass} value="WILDFIRE">Kebakaran</SelectItem>
+              <SelectItem className={filterSelectItemClass} value="WEATHER">Cuaca Ekstrem</SelectItem>
+            </SelectContent>
+          </Select>
 
-          <select
-            value={severity}
-            onChange={(e) => setSeverity(e.target.value)}
-            className="px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white"
-          >
-            <option value="ALL">Semua Tingkat Keparahan</option>
-            <option value="CRITICAL">Kritis / Darurat</option>
-            <option value="HIGH">Tinggi</option>
-            <option value="MODERATE">Sedang</option>
-            <option value="LOW">Rendah</option>
-          </select>
+          <Select value={severity} onValueChange={setSeverity}>
+            <SelectTrigger className={`${filterSelectClass} px-3 py-2`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className={filterSelectContentClass}>
+              <SelectItem className={filterSelectItemClass} value="ALL">Semua Tingkat Keparahan</SelectItem>
+              <SelectItem className={filterSelectItemClass} value="CRITICAL">Kritis / Darurat</SelectItem>
+              <SelectItem className={filterSelectItemClass} value="HIGH">Tinggi</SelectItem>
+              <SelectItem className={filterSelectItemClass} value="MODERATE">Sedang</SelectItem>
+              <SelectItem className={filterSelectItemClass} value="LOW">Rendah</SelectItem>
+            </SelectContent>
+          </Select>
 
           <button
             onClick={loadEvents}
@@ -180,17 +192,18 @@ export default function KejadianPage() {
             </div>
             <div className="flex items-center space-x-2 text-xs">
               <span className="text-slate-600 font-medium">Tampilkan per halaman:</span>
-              <select
-                value={limit}
-                onChange={(e) => setLimit(Number(e.target.value))}
-                className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white font-medium text-slate-800 shadow-sm"
-              >
-                <option value="5">5 Bencana</option>
-                <option value="10">10 Bencana</option>
-                <option value="25">25 Bencana</option>
-                <option value="50">50 Bencana</option>
-                <option value="100">100 Bencana</option>
-              </select>
+              <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
+                <SelectTrigger className={`${filterSelectClass} w-auto px-3 py-1.5 font-medium text-slate-800 shadow-sm`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className={filterSelectContentClass}>
+                  <SelectItem className={filterSelectItemClass} value="5">5 Bencana</SelectItem>
+                  <SelectItem className={filterSelectItemClass} value="10">10 Bencana</SelectItem>
+                  <SelectItem className={filterSelectItemClass} value="25">25 Bencana</SelectItem>
+                  <SelectItem className={filterSelectItemClass} value="50">50 Bencana</SelectItem>
+                  <SelectItem className={filterSelectItemClass} value="100">100 Bencana</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

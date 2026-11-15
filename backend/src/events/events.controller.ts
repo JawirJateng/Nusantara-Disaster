@@ -31,20 +31,20 @@ export class EventsController {
   @Roles(Role.SUPER_ADMIN, Role.OPERATOR)
   @Post()
   async create(@Body() dto: CreateEventDto, @Req() req) {
-    return this.eventsService.create(dto, req.user?.id);
+    return this.eventsService.create(dto, req.user?.id, req.ip);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SUPER_ADMIN, Role.OPERATOR)
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateEventDto, @Req() req) {
-    return this.eventsService.update(id, dto, req.user?.id);
+    return this.eventsService.update(id, dto, req.user?.id, req.ip);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SUPER_ADMIN)
   @Delete(':id')
   async remove(@Param('id') id: string, @Req() req) {
-    return this.eventsService.remove(id, req.user?.id);
+    return this.eventsService.remove(id, req.user?.id, req.ip);
   }
 }

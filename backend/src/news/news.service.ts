@@ -20,6 +20,16 @@ export class NewsService implements OnModuleInit {
     await this.fetchAndSyncDisasterNews();
   }
 
+  // Batasi umur berita supaya DB gratian tidak penuh.
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async handleRetention() {
+    const cutoff = new Date(Date.now() - 90 * 24 * 3600 * 1000);
+    const { count } = await this.prisma.newsItem.deleteMany({
+      where: { publishedAt: { lt: cutoff } },
+    });
+    if (count) this.logger.log(`🧹 Retensi berita: ${count} berita lebih dari 90 hari dihapus.`);
+  }
+
   async fetchAndSyncDisasterNews() {
     const rssFeeds = [
       { name: 'CNN Indonesia', url: 'https://www.cnnindonesia.com/nasional/rss' },
@@ -55,6 +65,7 @@ export class NewsService implements OnModuleInit {
           if (titleMatch && linkMatch) {
             const title = titleMatch[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').replace(/<[^>]*>/g, '').trim();
             const sourceUrl = linkMatch[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').trim();
+            if (!/^https?:\/\//i.test(sourceUrl)) continue; // block javascript:/data: links from feeds
             const summary = descMatch ? descMatch[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').replace(/<[^>]*>/g, '').trim() : title;
             const pubDateStr = dateMatch ? dateMatch[1].trim() : new Date().toISOString();
             const publishedAt = new Date(pubDateStr);
@@ -106,11 +117,9 @@ export class NewsService implements OnModuleInit {
   }
 
   async findAll(limit = 20, offset = 0) {
-    const takeNum = isNaN(Number(limit)) ? 20 : Number(limit);
-    const skipNum = isNaN(Number(offset)) ? 0 : Number(offset);
-
-    // Trigger background sync from live APIs
-    this.fetchAndSyncDisasterNews().catch(() => {});
+    // Public endpoint: hard cap so `?limit=100000000` cannot dump the whole table.
+    const takeNum = Math.min(Math.max(Number(limit) || 20, 1), 100);
+    const skipNum = Math.max(0, Number(offset) || 0);
 
     // STRICT: Only return disaster news items stored in database
     const where = { category: { not: 'OTHER' as any } };

@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# builds
+.next/
+dist/
+build/
+*.tsbuildinfo
+
+# env (keep examples)
+.env
+.env.*
+!.env.example
+
+# deploy
+.vercel/
+
+# local editor / agent tooling
+.claude/
+.opencode/
+.serena/
+.vscode/
+
+# logs & OS cruft
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# test output
+coverage/

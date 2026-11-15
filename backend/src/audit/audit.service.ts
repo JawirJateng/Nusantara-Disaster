@@ -6,8 +6,8 @@ export class AuditService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(limit = 50, offset = 0) {
-    const takeNum = isNaN(Number(limit)) ? 50 : Number(limit);
-    const skipNum = isNaN(Number(offset)) ? 0 : Number(offset);
+    const takeNum = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    const skipNum = Math.max(0, Number(offset) || 0);
 
     const [items, total] = await Promise.all([
       this.prisma.auditLog.findMany({
