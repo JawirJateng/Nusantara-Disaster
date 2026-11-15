@@ -16,7 +16,9 @@ import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // runtime.env carries the hosted deploy config (gitignored). Real
+    // environment variables always win, so Docker keeps using compose env.
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', 'runtime.env'] }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     ScheduleModule.forRoot(),
     PrismaModule,

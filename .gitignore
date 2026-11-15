@@ -11,6 +11,8 @@ build/
 .env
 .env.*
 !.env.example
+# hosted deploy config written by the agent (holds real secrets)
+runtime.env
 
 # deploy
 .vercel/
