@@ -19,6 +19,9 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   });
 
+  // Host health checks probe "/" (Back4App does), which the prefixed API answers 404.
+  app.getHttpAdapter().getInstance().get('/', (_req, res) => res.json({ status: 'ok' }));
+
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
