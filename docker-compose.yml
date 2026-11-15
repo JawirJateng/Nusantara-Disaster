@@ -24,6 +24,7 @@ services:
     container_name: ndw_backend
     environment:
       DATABASE_URL: postgresql://ndw_user:ndw_password@postgres:5432/ndw_db?schema=public
+      DATABASE_URL_UNPOOLED: postgresql://ndw_user:ndw_password@postgres:5432/ndw_db?schema=public
       PORT: 4000
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET belum diset - isi .env di root repo}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@ndw.go.id}
