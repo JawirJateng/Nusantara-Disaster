@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: ndw-backend
+    runtime: docker
+    region: singapore
+    # free sleeps after 15 min idle, which stops the 1-minute sync cron.
+    # Switch to starter to keep it always on.
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: commit
+    envVars:
+      # Neon pooled + direct URLs. Fill these in the Render dashboard.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://ndw-frontend-jawir1.vercel.app
+      - key: TRUST_PROXY
+        value: "1"
