@@ -53,7 +53,9 @@ export class EventsService {
       this.prisma.disasterEvent.count({ where }),
     ]);
 
-    // One earthquake per location (±0.2°): rawItems is newest-first, so the latest one wins.
+    // One quake per location (±0.2°) per hour: BMKG re-reports the same event, but
+    // quakes hours apart in the same area are separate events and must all show.
+    const DEDUPE_WINDOW_MS = 60 * 60 * 1000;
     const unique: typeof rawItems = [];
     for (const item of rawItems) {
       const isNearbyQuake =
@@ -62,7 +64,9 @@ export class EventsService {
           (kept) =>
             kept.category === 'EARTHQUAKE' &&
             Math.abs(kept.latitude - item.latitude) < 0.2 &&
-            Math.abs(kept.longitude - item.longitude) < 0.2,
+            Math.abs(kept.longitude - item.longitude) < 0.2 &&
+            Math.abs(new Date(kept.occurredAt).getTime() - new Date(item.occurredAt).getTime()) <
+              DEDUPE_WINDOW_MS,
         );
       if (!isNearbyQuake) unique.push(item);
     }
