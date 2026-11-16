@@ -1,7 +1,13 @@
 /** @type {import('next').NextConfig} */
+// Same-origin proxy so every Vercel domain works without CORS.
+const API_PROXY_TARGET = process.env.API_PROXY_TARGET || 'https://ndwbackend-escb2d77.back4.app';
+
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  async rewrites() {
+    return [{ source: '/api/:path*', destination: `${API_PROXY_TARGET}/api/:path*` }];
+  },
   async headers() {
     return [
       {
