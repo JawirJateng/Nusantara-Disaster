@@ -40,34 +40,35 @@ export class EventsService {
     const limit = filter.limit ? Number(filter.limit) : 100;
     const offset = filter.offset ? Number(filter.offset) : 0;
 
+    // Dedupe runs in memory below, so `offset` must not be applied by the query:
+    // skipping raw rows first made page 2 repeat rows already shown on page 1.
+    // shortcut: re-reads from the newest row on every page, move the dedupe into SQL past ~10k events.
     const [rawItems, total] = await Promise.all([
       this.prisma.disasterEvent.findMany({
         where,
         include: { source: true },
-        orderBy: { occurredAt: 'desc' },
-        take: limit * 2,
-        skip: offset,
+        orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+        take: offset + limit * 2,
       }),
       this.prisma.disasterEvent.count({ where }),
     ]);
 
     // One earthquake per location (±0.2°): rawItems is newest-first, so the latest one wins.
-    const items: typeof rawItems = [];
+    const unique: typeof rawItems = [];
     for (const item of rawItems) {
-      if (items.length >= limit) break;
       const isNearbyQuake =
         item.category === 'EARTHQUAKE' &&
-        items.some(
+        unique.some(
           (kept) =>
             kept.category === 'EARTHQUAKE' &&
             Math.abs(kept.latitude - item.latitude) < 0.2 &&
             Math.abs(kept.longitude - item.longitude) < 0.2,
         );
-      if (!isNearbyQuake) items.push(item);
+      if (!isNearbyQuake) unique.push(item);
     }
 
     return {
-      items,
+      items: unique.slice(offset, offset + limit),
       meta: {
         total,
         limit,

@@ -11,7 +11,7 @@
     "prestart": "npm run build || true",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/src/main",
-    "test": "node --require ts-node/register --test src/auth/auth.security.test.ts src/sync/sync.core.test.ts src/sync/http-client.test.ts src/sync/sync.service.test.ts"
+    "test": "node --require ts-node/register --test src/auth/auth.security.test.ts src/events/events.service.test.ts src/sync/sync.core.test.ts src/sync/http-client.test.ts src/sync/sync.service.test.ts"
   },
   "engines": {
     "node": ">=20"
