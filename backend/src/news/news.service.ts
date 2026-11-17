@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { categoryFor } from './news.classifier';
 
 @Injectable()
 export class NewsService implements OnModuleInit {
@@ -35,14 +36,7 @@ export class NewsService implements OnModuleInit {
       { name: 'CNN Indonesia', url: 'https://www.cnnindonesia.com/nasional/rss' },
       { name: 'Detik.com', url: 'https://news.detik.com/rss' },
       { name: 'Tempo', url: 'https://www.tempo.co/rss' },
-      { name: 'Antara News', url: 'https://www.antaranews.com/rss/peristiwa' }
-    ];
-
-    const disasterKeywords = [
-      'gempa', 'banjir', 'longsor', 'gunung', 'tsunami', 'bencana', 'tanah longsor',
-      'erupsi', 'cuaca ekstrem', 'badai', 'angin puting beliung', 'kebakaran hutan',
-      'vulkanik', 'letusan', 'abrasi', 'kekeringan', 'gelombang tinggi', 'banjir bandang',
-      'seismik', 'tektonik'
+      { name: 'Antara News', url: 'https://www.antaranews.com/rss/metro' }
     ];
 
     let newCount = 0;
@@ -70,23 +64,9 @@ export class NewsService implements OnModuleInit {
             const pubDateStr = dateMatch ? dateMatch[1].trim() : new Date().toISOString();
             const publishedAt = new Date(pubDateStr);
 
-            const lowerTitle = title.toLowerCase();
-            const lowerSummary = summary.toLowerCase();
-
-            // STRICT FILTER: Only save if related to natural disasters
-            const isDisaster = disasterKeywords.some(kw => lowerTitle.includes(kw) || lowerSummary.includes(kw));
-
-            if (!isDisaster) {
-              continue; // Skip non-disaster news
-            }
-
-            let category = 'OTHER';
-            if (lowerTitle.includes('gempa') || lowerSummary.includes('gempa') || lowerTitle.includes('tektonik')) category = 'EARTHQUAKE';
-            else if (lowerTitle.includes('banjir') || lowerSummary.includes('banjir')) category = 'FLOOD';
-            else if (lowerTitle.includes('gunung') || lowerTitle.includes('erupsi') || lowerSummary.includes('gunung') || lowerSummary.includes('vulkanik')) category = 'VOLCANO';
-            else if (lowerTitle.includes('longsor') || lowerSummary.includes('longsor')) category = 'LANDSLIDE';
-            else if (lowerTitle.includes('cuaca') || lowerTitle.includes('badai') || lowerSummary.includes('angin') || lowerSummary.includes('gelombang')) category = 'WEATHER';
-            else if (lowerTitle.includes('kebakaran') || lowerSummary.includes('kebakaran')) category = 'WILDFIRE';
+            // Only save news that is about a natural disaster
+            const category = categoryFor(title, summary);
+            if (!category) continue;
 
             const existing = await this.prisma.newsItem.findFirst({
               where: { sourceUrl },
@@ -113,7 +93,18 @@ export class NewsService implements OnModuleInit {
       }
     }
 
+    await this.pruneNonDisaster();
+
     this.logger.log(`✅ Berhasil sinkronisasi berita bencana live dari API berita. Berita baru: ${newCount}`);
+  }
+
+  // shortcut: full-table scan per sync; switch to a keyword/publishedAt filtered query if newsItem grows past tens of thousands.
+  private async pruneNonDisaster() {
+    const items = await this.prisma.newsItem.findMany({ select: { id: true, title: true, summary: true } });
+    const ids = items.filter((item) => !categoryFor(item.title, item.summary)).map((item) => item.id);
+    if (!ids.length) return;
+    await this.prisma.newsItem.deleteMany({ where: { id: { in: ids } } });
+    this.logger.log(`🧹 Hapus ${ids.length} berita yang bukan bencana alam.`);
   }
 
   async findAll(limit = 20, offset = 0) {
@@ -121,17 +112,14 @@ export class NewsService implements OnModuleInit {
     const takeNum = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const skipNum = Math.max(0, Number(offset) || 0);
 
-    // STRICT: Only return disaster news items stored in database
-    const where = { category: { not: 'OTHER' as any } };
-
+    // Only disaster news is stored (see categoryFor), so no category filter is needed here.
     const [items, total] = await Promise.all([
       this.prisma.newsItem.findMany({
-        where,
         orderBy: { publishedAt: 'desc' },
         take: takeNum,
         skip: skipNum,
       }),
-      this.prisma.newsItem.count({ where }),
+      this.prisma.newsItem.count(),
     ]);
 
     return {
